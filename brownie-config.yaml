@@ -1,0 +1,13 @@
+autofetch_sources: True
+
+dependencies:
+  - OpenZeppelin/openzeppelin-contracts@4.4.2
+
+compiler:
+  solc:
+    version: null
+    optimizer:
+      enabled: true
+      runs: 1000
+    remappings:
+      - '@openzeppelin=OpenZeppelin/openzeppelin-contracts@4.4.2/contracts'
