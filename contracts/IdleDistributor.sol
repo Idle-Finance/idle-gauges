@@ -10,6 +10,9 @@ import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
 contract IdleDistributor is Ownable {
     /// Events
 
+    /// @notice Event emitted when distributor proxy is updated
+    event UpdateDistributorProxy(address oldProxy, address newProxy);
+
     /// @notice Event emitted when distribution parameters are updated
     ///         for upcoming distribution epoch
     event UpdatePendingDistributionParameters(uint256 time, uint256 rate);
@@ -56,6 +59,19 @@ contract IdleDistributor is Ownable {
 
     /// @notice Next distribution epoch starting timestamp
     uint256 public pendingStartEpochTime = block.timestamp;
+
+    /// @notice The DistributorProxy contract
+    address public distributorProxy;
+
+    /// @notice Update the DistributorProxy contract
+    /// @dev Only owner can call this method
+    /// @param proxy New DistributorProxy contract
+    function setDistributorProxy(address proxy)  external onlyOwner {
+        address distributorProxy_ = distributorProxy;
+        distributorProxy = proxy;
+
+        emit UpdateDistributorProxy(distributorProxy_, proxy);
+    }
 
     /// @notice Update pending epoch parameters
     /// @dev Only owner can call this method
@@ -130,6 +146,7 @@ contract IdleDistributor is Ownable {
     /// @param to The account that will receive IDLEs
     /// @param amount The amount of IDLEs to distribute
     function distribute(address to, uint256 amount) external {
+        require(msg.sender == distributorProxy, "Caller is not distributor proxy");
         require(to != address(0), "Can't distribute to address zero");
 
         uint256 _pendingStartEpochTime = pendingStartEpochTime;
