@@ -66,7 +66,7 @@ contract IdleDistributor is Ownable {
     /// @notice Update the DistributorProxy contract
     /// @dev Only owner can call this method
     /// @param proxy New DistributorProxy contract
-    function setDistributorProxy(address proxy)  external onlyOwner {
+    function setDistributorProxy(address proxy) external onlyOwner {
         address distributorProxy_ = distributorProxy;
         distributorProxy = proxy;
 
@@ -77,7 +77,10 @@ contract IdleDistributor is Ownable {
     /// @dev Only owner can call this method
     /// @param newRate Rate for upcoming epoch
     /// @param newStartEpochTime Timestamp of upcoming epoch start
-    function updatePendingParams(uint256 newRate, uint256 newStartEpochTime) onlyOwner external {
+    function updatePendingParams(uint256 newRate, uint256 newStartEpochTime)
+        external
+        onlyOwner
+    {
         pendingRate = newRate;
         pendingStartEpochTime = newStartEpochTime;
 
@@ -102,16 +105,22 @@ contract IdleDistributor is Ownable {
     /// @notice Updates distribution rate and start timestamp of the epoch
     /// @dev Callable by anyone if pending epoch should start
     function updateDistributionParameters() external {
-        require(block.timestamp >= pendingStartEpochTime, "Pending starting time not met.");
+        require(
+            block.timestamp >= pendingStartEpochTime,
+            "Pending starting time not met."
+        );
         _updateDistributionParameters();
     }
 
     /// @notice Get timestamp of the current distribution epoch start
     /// @return epochStartTime Timestamp of the current epoch start
-    function startEpochTimeWrite() external returns(uint256 epochStartTime) {
-        uint256 _pendingStartEpoch = pendingStartEpochTime;
+    function startEpochTimeWrite() external returns (uint256 epochStartTime) {
+        uint256 _pendingStartEpochTime = pendingStartEpochTime;
 
-        if(_pendingStartEpoch != 0 && block.timestamp >= _pendingStartEpoch) {
+        if (
+            _pendingStartEpochTime != 0 &&
+            block.timestamp >= _pendingStartEpochTime
+        ) {
             _updateDistributionParameters();
             epochStartTime = startEpochTime;
         } else {
@@ -121,10 +130,13 @@ contract IdleDistributor is Ownable {
 
     /// @notice Get timestamp of the next distribution epoch start
     /// @return futureEpochTime Timestamp of the next epoch start
-    function futureEpochTimeWrite() external returns(uint256 futureEpochTime) {
+    function futureEpochTimeWrite() external returns (uint256 futureEpochTime) {
         uint256 _pendingStartEpochTime = pendingStartEpochTime;
 
-        if(_pendingStartEpochTime != 0 && block.timestamp >= _pendingStartEpochTime) {
+        if (
+            _pendingStartEpochTime != 0 &&
+            block.timestamp >= _pendingStartEpochTime
+        ) {
             _updateDistributionParameters();
             futureEpochTime = _pendingStartEpochTime;
         } else {
@@ -133,12 +145,12 @@ contract IdleDistributor is Ownable {
     }
 
     /// @dev Returns max available IDLEs to distribute
-    function _availableToDistribute() internal view returns(uint256) {
+    function _availableToDistribute() internal view returns (uint256) {
         return distributedIdle + (block.timestamp - startEpochTime) * rate;
     }
 
     /// @notice Returns max available IDLEs for current distribution epoch
-    function availableToDistribute() external view returns(uint256) {
+    function availableToDistribute() external view returns (uint256) {
         return _availableToDistribute();
     }
 
@@ -146,17 +158,26 @@ contract IdleDistributor is Ownable {
     /// @param to The account that will receive IDLEs
     /// @param amount The amount of IDLEs to distribute
     function distribute(address to, uint256 amount) external {
-        require(msg.sender == distributorProxy, "Caller is not distributor proxy");
+        require(
+            msg.sender == distributorProxy,
+            "Caller is not distributor proxy"
+        );
         require(to != address(0), "Can't distribute to address zero");
 
         uint256 _pendingStartEpochTime = pendingStartEpochTime;
 
-        if(_pendingStartEpochTime != 0 && block.timestamp >= _pendingStartEpochTime) {
+        if (
+            _pendingStartEpochTime != 0 &&
+            block.timestamp >= _pendingStartEpochTime
+        ) {
             _updateDistributionParameters();
         }
 
         uint256 _distributedIdle = distributedIdle + amount;
-        require(_distributedIdle <= _availableToDistribute(), "Exceeds available to distribute");
+        require(
+            _distributedIdle <= _availableToDistribute(),
+            "Exceeds available to distribute"
+        );
         distributedIdle = _distributedIdle;
 
         IDLE.transfer(to, amount);
