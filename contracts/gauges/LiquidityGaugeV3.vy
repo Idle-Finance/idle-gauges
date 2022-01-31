@@ -180,9 +180,9 @@ def integrate_checkpoint() -> uint256:
 @internal
 def _update_liquidity_limit(addr: address, l: uint256, L: uint256):
     """
-    @notice Calculate limits which depend on the amount of CRV token per-user.
+    @notice Calculate limits which depend on the amount of IDLE token per-user.
             Effectively it calculates working balances to apply amplification
-            of CRV production by CRV
+            of IDLE distribution by `distributor`
     @param addr User address
     @param l User's amount of liquidity (LP tokens)
     @param L Total amount of liquidity (LP tokens)
@@ -390,7 +390,7 @@ def claimable_tokens(addr: address) -> uint256:
 @external
 def reward_contract() -> address:
     """
-    @notice Address of the reward contract providing non-CRV incentives for this gauge
+    @notice Address of the reward contract providing non-IDLE incentives for this gauge
     @dev Returns `ZERO_ADDRESS` if there is no reward contract active
     """
     return convert(self.reward_data % 2**160, address)
@@ -774,7 +774,7 @@ def set_rewards(_reward_contract: address, _sigs: bytes32, _reward_tokens: addre
 def set_killed(_is_killed: bool):
     """
     @notice Set the killed status for this contract
-    @dev When killed, the gauge always yields a rate of 0 and so cannot mint CRV
+    @dev When killed, the gauge always yields a rate of 0 and so cannot receive IDLE
     @param _is_killed Killed status to set
     """
     assert msg.sender == self.admin
