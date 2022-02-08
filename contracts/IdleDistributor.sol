@@ -8,22 +8,6 @@ import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
 /// @author dantop114
 /// @notice Distribution contract that handles IDLE distribution for Idle Liquidity Gauges.
 contract IdleDistributor is Ownable {
-    
-    /*///////////////////////////////////////////////////////////////
-                        ERRORS DECLARATION
-    ///////////////////////////////////////////////////////////////*/
-
-    /// @dev Error raised when caller is not DistributorProxy. 
-    error NotProxy();
-
-    /// @dev Error raised when receiver is the address zero.
-    error AddressZero();
-
-    /// @dev Error raised when requested amount to distribute is too high.
-    error AmountTooHigh();
-
-    /// @dev Error raised when epoch is still running.
-    error EpochStillRunning();
 
     /*///////////////////////////////////////////////////////////////
                         IMMUTABLES AND CONSTANTS
@@ -37,28 +21,28 @@ contract IdleDistributor is Ownable {
 
     /// @notice Initial distribution rate (as per IIP-*).
     /// @dev 178_200 IDLEs in 6 months.
-    uint256 public constant INITIAL_RATE = (178_200 * 10**18) / SIX_MONTHS;
+    uint256 public constant INITIAL_RATE = (178_200 * 10 ** 18) / SIX_MONTHS;
 
     /// @notice Distribution epoch duration.
     /// @dev 6 months epoch duration.
     uint256 public constant EPOCH_DURATION = SIX_MONTHS;
 
     /// @notice Initial distribution epoch delay.
-    /// @dev Note that this needs to be updated when deploying if 2 days are not enough.
-    uint256 public constant INITIAL_DISTRIBUTION_DELAY = 2 days;
+    /// @dev This needs to be updated when deploying if 1 day is not enough.
+    uint256 public constant INITIAL_DISTRIBUTION_DELAY = 86400;
 
     /*///////////////////////////////////////////////////////////////
                                 STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Distributed IDLEs so far
+    /// @notice Distributed IDLEs so far.
     uint256 public distributedIdle;
 
-    /// @notice Running distribution epoch rate
+    /// @notice Running distribution epoch rate.
     uint256 public rate;
 
     /// @notice Running distribution epoch starting epoch time
-    uint256 public startEpochTime = block.timestamp + INITIAL_DISTRIBUTION_DELAY;
+    uint256 public startEpochTime = block.timestamp + INITIAL_DISTRIBUTION_DELAY - EPOCH_DURATION;
 
     /// @notice Total distributed IDLEs when current epoch starts
     uint256 public epochStartingDistributed;
@@ -101,33 +85,31 @@ contract IdleDistributor is Ownable {
         emit UpdatePendingRate(newRate);
     }
 
-    /// @dev Updates internal state to match current epoch
-    ///      distribution parameters
+    /// @dev Updates internal state to match current epoch distribution parameters.
     function _updateDistributionParameters() internal {
         uint256 _pendingRate = pendingRate;
 
-        if(_pendingRate != 0) {
-            rate = _pendingRate; // set new distribution rate
-            pendingRate = 0; // reset pending rate
-        }
-        
         startEpochTime += EPOCH_DURATION; // set start epoch timestamp
-        epochStartingDistributed = distributedIdle; // set distributed IDLE for epoch beginning
+        epochStartingDistributed += (rate * EPOCH_DURATION);
 
+
+        // note that pending rate is 0 after each distribution epoch end, so we need to
+        // set the pending rate each time we plan to extend the gauge program
+        rate = _pendingRate; // set new distribution rate
+        pendingRate = 0; // reset pending rate
+        
         emit UpdateDistributionParameters(startEpochTime, rate);
     }
 
-    /// @notice Updates distribution rate and start timestamp of the epoch
-    /// @dev Callable by anyone if pending epoch should start
+    /// @notice Updates distribution rate and start timestamp of the epoch.
+    /// @dev Callable by anyone if pending epoch should start.
     function updateDistributionParameters() external {
-        if(block.timestamp < startEpochTime + EPOCH_DURATION) 
-            revert EpochStillRunning();
-
+        require(block.timestamp >= startEpochTime + EPOCH_DURATION, "epoch still running");
         _updateDistributionParameters();
     }
 
-    /// @notice Get timestamp of the current distribution epoch start
-    /// @return _startEpochTime Timestamp of the current epoch start
+    /// @notice Get timestamp of the current distribution epoch start.
+    /// @return _startEpochTime Timestamp of the current epoch start.
     function startEpochTimeWrite() external returns (uint256 _startEpochTime) {
         _startEpochTime = startEpochTime;
 
@@ -137,8 +119,8 @@ contract IdleDistributor is Ownable {
         }
     }
 
-    /// @notice Get timestamp of the next distribution epoch start
-    /// @return _futureEpochTime Timestamp of the next epoch start
+    /// @notice Get timestamp of the next distribution epoch start.
+    /// @return _futureEpochTime Timestamp of the next epoch start.
     function futureEpochTimeWrite() external returns (uint256 _futureEpochTime) {
         _futureEpochTime = startEpochTime + EPOCH_DURATION;
 
@@ -151,7 +133,7 @@ contract IdleDistributor is Ownable {
     /// @dev Returns max available IDLEs to distribute.
     /// @dev This will revert until initial distribution begins.
     function _availableToDistribute() internal view returns (uint256) {
-        return distributedIdle + (block.timestamp - startEpochTime) * rate;
+        return epochStartingDistributed + (block.timestamp - startEpochTime) * rate;
     }
 
     /// @notice Returns max available IDLEs for current distribution epoch.
@@ -164,17 +146,24 @@ contract IdleDistributor is Ownable {
     /// @param to The account that will receive IDLEs.
     /// @param amount The amount of IDLEs to distribute.
     function distribute(address to, uint256 amount) external {
-        if(msg.sender != distributorProxy) revert NotProxy();
-        if(to == address(0)) revert AddressZero();
+        require(msg.sender == distributorProxy, "not proxy");
+        require(to != address(0), "address zero");
 
         if (block.timestamp >= startEpochTime + EPOCH_DURATION) {
             _updateDistributionParameters();
         }
 
         uint256 _distributedIdle = distributedIdle + amount;
-        if(_distributedIdle > _availableToDistribute()) revert AmountTooHigh();
+        require(_distributedIdle <= _availableToDistribute(), "amount too high");
 
         distributedIdle = _distributedIdle;
+        IDLE.transfer(to, amount);
+    }
+
+    /// @notice Emergency method to withdraw funds.
+    /// @param to The account that will receive IDLEs.
+    /// @param amount The amount of IDLEs to withdraw from contract.
+    function emergencyWithdraw(address to, uint256 amount) external onlyOwner {
         IDLE.transfer(to, amount);
     }
 }
