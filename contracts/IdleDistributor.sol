@@ -50,6 +50,9 @@ contract IdleDistributor is Ownable {
     /// @notice Distribution rate pending for upcoming epoch
     uint256 public pendingRate = INITIAL_RATE;
 
+    /// @notice Boolean indicating if the rate should go to 0.
+    bool public rateToZero = false;
+
     /// @notice The DistributorProxy contract
     address public distributorProxy;
 
@@ -57,13 +60,16 @@ contract IdleDistributor is Ownable {
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Event emitted when distributor proxy is updated
+    /// @notice Event emitted when distributor proxy is updated.
     event UpdateDistributorProxy(address oldProxy, address newProxy);
 
-    /// @notice Event emitted when distribution parameters are updated for upcoming distribution epoch
+    /// @notice Event emitted when rate should go to zero.
+    event UpdateRateToZero(bool toZero);
+
+    /// @notice Event emitted when distribution parameters are updated for upcoming distribution epoch.
     event UpdatePendingRate(uint256 rate);
 
-    /// @notice Event emitted when distribution parameters are updated
+    /// @notice Event emitted when distribution parameters are updated.
     event UpdateDistributionParameters(uint256 time, uint256 rate);
 
 
@@ -77,27 +83,27 @@ contract IdleDistributor is Ownable {
         emit UpdateDistributorProxy(distributorProxy_, proxy);
     }
 
+    function setRateToZero(bool _toZero) external onlyOwner {
+        rateToZero = _toZero;
+        emit UpdateRateToZero(_toZero);
+    }
+
     /// @notice Update rate for next epoch
     /// @dev Only owner can call this method
     /// @param newRate Rate for upcoming epoch
     function setPendingRate(uint256 newRate) external onlyOwner {
+        require(newRate != 0, "cannot be zero");
+
         pendingRate = newRate;
         emit UpdatePendingRate(newRate);
     }
 
     /// @dev Updates internal state to match current epoch distribution parameters.
     function _updateDistributionParameters() internal {
-        uint256 _pendingRate = pendingRate;
-
         startEpochTime += EPOCH_DURATION; // set start epoch timestamp
-        epochStartingDistributed += (rate * EPOCH_DURATION);
+        epochStartingDistributed += (rate * EPOCH_DURATION); // set initial distributed floor
+        rate = rateToZero ? 0 : pendingRate; // set new rate (zero or pending rate)
 
-
-        // note that pending rate is 0 after each distribution epoch end, so we need to
-        // set the pending rate each time we plan to extend the gauge program
-        rate = _pendingRate; // set new distribution rate
-        pendingRate = 0; // reset pending rate
-        
         emit UpdateDistributionParameters(startEpochTime, rate);
     }
 
