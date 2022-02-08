@@ -59,8 +59,10 @@ def test_distribute_multiple(accounts, chain, distributor, idle_token, durations
     balance = idle_token.balanceOf(accounts[1])
     epoch_start = distributor.startEpochTime()
 
+    assert epoch_start > 0
+
     for time in durations:
-        chain.sleep(time)
+        chain.mine(timedelta=time)
 
         if chain.time() - epoch_start > SIX_MONTHS:
             distributor.updateDistributionParameters({"from": accounts[0]})

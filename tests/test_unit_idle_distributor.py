@@ -110,3 +110,14 @@ def test_pending_rate(accounts, chain, distributor):
     chain.mine(timedelta=SIX_MONTHS)
     distributor.updateDistributionParameters({"from": accounts[0]})
     assert distributor.rate() == 100
+
+def test_rate_to_zero(accounts, chain, distributor):
+    chain.sleep(86401)
+    distributor.updateDistributionParameters({"from": accounts[0]})
+    distributor.setRateToZero(True, {"from": accounts[0]})
+
+    assert distributor.rate() > 0
+
+    chain.mine(timedelta=SIX_MONTHS)
+    distributor.updateDistributionParameters({"from": accounts[0]})
+    assert distributor.rate() == 0

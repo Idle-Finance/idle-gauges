@@ -6,7 +6,7 @@ from random import random, randrange
 MAX_UINT256 = 2 ** 256 - 1
 WEEK = 7 * 86400
 SIX_MONTHS = 86400 * 186
-IDLE_WHALE = '0x107a369bc066c77ff061c7d2420618a6ce31b925'
+IDLE_WHALE = '0xb0aa1f98523ec15932dd5faac5d86e57115571c7'
 
 def approx(a, b, precision=1e-10):
     if a == b == 0:
@@ -150,14 +150,12 @@ def test_mining_with_votelock(
     voting_escrow,
 ):
     alice, bob = accounts[:2]
-    chain.mine(timedelta=2 * WEEK + 5)
+    chain.sleep(2 * WEEK + 5)
 
     # Wire up Gauge to the controller to have proper rates and stuff
     gauge_controller.add_type(b"Liquidity", {"from": alice})
     gauge_controller.change_type_weight(0, 10 ** 18, {"from": alice})
     gauge_controller.add_gauge(gauge_v3.address, 0, 10 ** 18, {"from": alice})
-
-    assert mock_lp_token.balanceOf(alice) > 0
 
     # Prepare tokens
     idle_token.transfer(alice, 10 ** 20, {"from": IDLE_WHALE})
@@ -191,12 +189,12 @@ def test_mining_with_votelock(
     assert voting_escrow.balanceOf(alice) == 0
     assert voting_escrow.balanceOf(bob) == 0
 
-    # Alice earned 2.5 times more CRV because she vote-locked her CRV
+    # Alice earned more IDLE because she vote-locked her IDLE
     rewards_alice = gauge_v3.integrate_fraction(alice)
     rewards_bob = gauge_v3.integrate_fraction(bob)
-    assert approx(rewards_alice / rewards_bob, 2.5, 1e-5)
+    assert rewards_alice > rewards_bob
 
-    # Time travel / checkpoint: no one has CRV vote-locked
+    # Time travel / checkpoint: no one has IDLE vote-locked
     chain.sleep(4 * WEEK)
     alice.transfer(alice, 1)
     voting_escrow.withdraw({"from": alice})
@@ -227,7 +225,7 @@ def test_mining_with_votelock(
         else:
             break
 
-    # Time travel / checkpoint: no one has CRV vote-locked
+    # Time travel / checkpoint: no one has IDLE vote-locked
     chain.sleep(4 * WEEK)
     alice.transfer(alice, 1)
     voting_escrow.withdraw({"from": alice})
