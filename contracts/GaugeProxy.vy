@@ -1,4 +1,4 @@
-# @version 0.2.8
+# @version 0.2.15
 """
 @title Curve LiquidityGaugeV2 Ownership Proxy
 @author This version was modified starting from Curve Finance's DAO contracts
