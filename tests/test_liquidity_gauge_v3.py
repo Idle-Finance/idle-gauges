@@ -5,7 +5,6 @@ from random import random, randrange
 
 MAX_UINT256 = 2 ** 256 - 1
 WEEK = 7 * 86400
-SIX_MONTHS = 86400 * 186
 IDLE_WHALE = '0xb0aa1f98523ec15932dd5faac5d86e57115571c7'
 
 def approx(a, b, precision=1e-10):
@@ -22,8 +21,8 @@ def mock_lp_token(ERC20LP, accounts):
     yield ERC20LP.deploy("Idle YTP token", "YTP-LP", 18, 10 ** 9, {'from': accounts[0]})
 
 @pytest.fixture(scope="module")
-def distributor(IdleDistributor, accounts):
-    yield IdleDistributor.deploy({"from": accounts[0]})
+def distributor(Distributor, accounts):
+    yield Distributor.deploy(accounts[0], {"from": accounts[0]})
 
 @pytest.fixture(scope="module")
 def voting_escrow():
@@ -42,14 +41,14 @@ def distributor_proxy(DistributorProxy, accounts, gauge_controller, distributor)
 def gauge_v3(LiquidityGaugeV3, accounts, mock_lp_token, distributor_proxy):
     yield LiquidityGaugeV3.deploy(mock_lp_token, distributor_proxy, accounts[0], {"from": accounts[0]})
 
-
 def test_gauge_integral(accounts, chain, mock_lp_token, distributor, gauge_v3, gauge_controller):
-    alice, bob = accounts[:2]
+    admin = accounts[0]
+    alice, bob = accounts[8], accounts[9]
 
     # Wire up Gauge to the controller to have proper rates and stuff
-    gauge_controller.add_type(b"Liquidity", {"from": alice})
-    gauge_controller.change_type_weight(0, 10 ** 18, {"from": alice})
-    gauge_controller.add_gauge(gauge_v3.address, 0, 10 ** 18, {"from": alice})
+    gauge_controller.add_type(b"Liquidity", {"from": admin})
+    gauge_controller.change_type_weight(0, 10 ** 18, {"from": admin})
+    gauge_controller.add_gauge(gauge_v3.address, 0, 10 ** 18, {"from": admin})
 
     alice_staked = 0
     bob_staked = 0
@@ -83,7 +82,7 @@ def test_gauge_integral(accounts, chain, mock_lp_token, distributor, gauge_v3, g
     # and Alice does so more rarely
     for i in range(40):
         is_alice = random() < 0.2
-        dt = randrange(1, SIX_MONTHS // 5)
+        dt = randrange(1, WEEK // 5)
         chain.sleep(dt)
         chain.mine()
 
@@ -130,7 +129,7 @@ def test_gauge_integral(accounts, chain, mock_lp_token, distributor, gauge_v3, g
         assert gauge_v3.balanceOf(bob) == bob_staked
         assert gauge_v3.totalSupply() == alice_staked + bob_staked
 
-        dt = randrange(1, SIX_MONTHS // 20)
+        dt = randrange(1, WEEK // 20)
         chain.sleep(dt)
         chain.mine()
 
@@ -149,13 +148,14 @@ def test_mining_with_votelock(
     gauge_controller,
     voting_escrow,
 ):
-    alice, bob = accounts[:2]
+    admin = accounts[0]
+    alice, bob = accounts[8], accounts[9]
     chain.sleep(2 * WEEK + 5)
 
     # Wire up Gauge to the controller to have proper rates and stuff
-    gauge_controller.add_type(b"Liquidity", {"from": alice})
-    gauge_controller.change_type_weight(0, 10 ** 18, {"from": alice})
-    gauge_controller.add_gauge(gauge_v3.address, 0, 10 ** 18, {"from": alice})
+    gauge_controller.add_type(b"Liquidity", {"from": admin})
+    gauge_controller.change_type_weight(0, 10 ** 18, {"from": admin})
+    gauge_controller.add_gauge(gauge_v3.address, 0, 10 ** 18, {"from": admin})
 
     # Prepare tokens
     idle_token.transfer(alice, 10 ** 20, {"from": IDLE_WHALE})
