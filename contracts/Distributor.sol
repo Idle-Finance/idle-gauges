@@ -4,28 +4,31 @@ pragma solidity ^0.8.10;
 import {Ownable} from "@openzeppelin/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
 
-/// @title IdleDistributor
+/// @title Distributor
 /// @author dantop114
 /// @notice Distribution contract that handles IDLE distribution for Idle Liquidity Gauges.
-contract IdleDistributor is Ownable {
+contract Distributor is Ownable {
 
     /*///////////////////////////////////////////////////////////////
                         IMMUTABLES AND CONSTANTS
     ///////////////////////////////////////////////////////////////*/
 
-    /// @notice The IDLE token (the token to distribute).
-    IERC20 immutable IDLE = IERC20(0x875773784Af8135eA0ef43b5a374AaD105c5D39e);
+    /// @notice The treasury address (used in case of emergency withdraw).
+    address immutable treasury;
 
-    /// @notice 6 months in seconds.
-    uint256 public constant SIX_MONTHS = 86400 * 186;
+    /// @notice The IDLE token (the token to distribute).
+    IERC20 immutable idle = IERC20(0x875773784Af8135eA0ef43b5a374AaD105c5D39e);
+
+    /// @notice One week in seconds.
+    uint256 public constant ONE_WEEK = 86400 * 7;
 
     /// @notice Initial distribution rate (as per IIP-*).
     /// @dev 178_200 IDLEs in 6 months.
-    uint256 public constant INITIAL_RATE = (178_200 * 10 ** 18) / SIX_MONTHS;
+    uint256 public constant INITIAL_RATE = (178_200 * 10 ** 18) / (26 * ONE_WEEK);
 
     /// @notice Distribution epoch duration.
     /// @dev 6 months epoch duration.
-    uint256 public constant EPOCH_DURATION = SIX_MONTHS;
+    uint256 public constant EPOCH_DURATION = ONE_WEEK;
 
     /// @notice Initial distribution epoch delay.
     /// @dev This needs to be updated when deploying if 1 day is not enough.
@@ -36,7 +39,7 @@ contract IdleDistributor is Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Distributed IDLEs so far.
-    uint256 public distributedIdle;
+    uint256 public distributed;
 
     /// @notice Running distribution epoch rate.
     uint256 public rate;
@@ -50,8 +53,8 @@ contract IdleDistributor is Ownable {
     /// @notice Distribution rate pending for upcoming epoch
     uint256 public pendingRate = INITIAL_RATE;
 
-    /// @notice Boolean indicating if the rate should go to 0.
-    bool public rateToZero = false;
+    /// @notice Boolean indicating if the rate should go to 0 (defaults to false).
+    bool public rateToZero;
 
     /// @notice The DistributorProxy contract
     address public distributorProxy;
@@ -63,15 +66,21 @@ contract IdleDistributor is Ownable {
     /// @notice Event emitted when distributor proxy is updated.
     event UpdateDistributorProxy(address oldProxy, address newProxy);
 
-    /// @notice Event emitted when rate should go to zero.
-    event UpdateRateToZero(bool toZero);
-
     /// @notice Event emitted when distribution parameters are updated for upcoming distribution epoch.
     event UpdatePendingRate(uint256 rate);
 
     /// @notice Event emitted when distribution parameters are updated.
     event UpdateDistributionParameters(uint256 time, uint256 rate);
 
+    /*///////////////////////////////////////////////////////////////
+                            CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev The constructor.
+    /// @param _treasury The emergency withdrawal address.
+    constructor(address _treasury) {
+        treasury = _treasury;
+    }
 
     /// @notice Update the DistributorProxy contract
     /// @dev Only owner can call this method
@@ -83,17 +92,10 @@ contract IdleDistributor is Ownable {
         emit UpdateDistributorProxy(distributorProxy_, proxy);
     }
 
-    function setRateToZero(bool _toZero) external onlyOwner {
-        rateToZero = _toZero;
-        emit UpdateRateToZero(_toZero);
-    }
-
     /// @notice Update rate for next epoch
     /// @dev Only owner can call this method
     /// @param newRate Rate for upcoming epoch
     function setPendingRate(uint256 newRate) external onlyOwner {
-        require(newRate != 0, "cannot be zero");
-
         pendingRate = newRate;
         emit UpdatePendingRate(newRate);
     }
@@ -102,7 +104,7 @@ contract IdleDistributor is Ownable {
     function _updateDistributionParameters() internal {
         startEpochTime += EPOCH_DURATION; // set start epoch timestamp
         epochStartingDistributed += (rate * EPOCH_DURATION); // set initial distributed floor
-        rate = rateToZero ? 0 : pendingRate; // set new rate (zero or pending rate)
+        rate = pendingRate; // set new rate
 
         emit UpdateDistributionParameters(startEpochTime, rate);
     }
@@ -151,7 +153,7 @@ contract IdleDistributor is Ownable {
     /// @notice Distribute `amount` IDLE to address `to`.
     /// @param to The account that will receive IDLEs.
     /// @param amount The amount of IDLEs to distribute.
-    function distribute(address to, uint256 amount) external {
+    function distribute(address to, uint256 amount) external returns(bool) {
         require(msg.sender == distributorProxy, "not proxy");
         require(to != address(0), "address zero");
 
@@ -159,17 +161,16 @@ contract IdleDistributor is Ownable {
             _updateDistributionParameters();
         }
 
-        uint256 _distributedIdle = distributedIdle + amount;
-        require(_distributedIdle <= _availableToDistribute(), "amount too high");
+        uint256 _distributed = distributed + amount;
+        require(_distributed <= _availableToDistribute(), "amount too high");
 
-        distributedIdle = _distributedIdle;
-        IDLE.transfer(to, amount);
+        distributed = _distributed;
+        return idle.transfer(to, amount);
     }
 
     /// @notice Emergency method to withdraw funds.
-    /// @param to The account that will receive IDLEs.
     /// @param amount The amount of IDLEs to withdraw from contract.
-    function emergencyWithdraw(address to, uint256 amount) external onlyOwner {
-        IDLE.transfer(to, amount);
+    function emergencyWithdraw(uint256 amount) external onlyOwner {
+        idle.transfer(treasury, amount);
     }
 }
