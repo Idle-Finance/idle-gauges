@@ -12,26 +12,27 @@ View the [Curve DAO documentation](https://curve.readthedocs.io/dao-overview.htm
 
 1. Create a virtual env (using Python 3.8):
 
-```
+```bash
 python3.8 -m venv venv
 ```
 
 2. Launch the virtual env
-```
+```bash
 source venv/bin/activate
 pip install -r requirements.txt
 ```
 
 3. Compile contracts:
 
-```
+```bash
 brownie compile
 ```
 
 4. Test contracts:
 
-```
-brownie test --network mainnet-fork
+```bash
+brownie test tests/unit # unit tests
+brownie test tests/e2e  --network mainnet-fork # e2e tests, needs mainnet forking
 ```
 
 ## Changes to Curve contracts 

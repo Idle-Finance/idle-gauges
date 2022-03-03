@@ -1,6 +1,6 @@
 import pytest
 
-from brownie import Contract, interface
+from brownie import Contract, interface, ZERO_ADDRESS
 
 MAX_UINT256 = 2**256 - 1
 WEEK = 7 * 86400
@@ -14,6 +14,11 @@ def approx(a, b, precision=1e-10):
     if a == b == 0:
         return True
     return 2 * abs(a - b) / (a + b) <= precision
+
+
+@pytest.fixture(scope="function")
+def reward_coin(ERC20LP, accounts):
+    yield ERC20LP.deploy("Rewards", "RWRD", 18, 10**9, {"from": accounts[0]})
 
 
 @pytest.fixture(scope="function")
@@ -32,8 +37,8 @@ def tranche_fei():
 
 
 @pytest.fixture(scope="function")
-def distributor(Distributor, accounts):
-    yield Distributor.deploy(accounts[0], {"from": accounts[0]})
+def distributor(Distributor, idle_token, accounts):
+    yield Distributor.deploy(idle_token, accounts[0], {"from": accounts[0]})
 
 
 @pytest.fixture(scope="function")
@@ -80,7 +85,6 @@ def dai():
 def fei():
     yield Contract.from_explorer("0x956F47F50A910163D8BF957Cf5846D573E7f87CA")
 
-
 def test_e2e_claimable_idle_per_gauge_when_voting(
     admin,
     accounts,
@@ -122,7 +126,7 @@ def test_e2e_claimable_idle_per_gauge_when_voting(
     idle_token.approve(voting_escrow, 10 * 1e18, {"from": bob})
     voting_escrow.create_lock(10 * 1e18, 1668902400, {"from": bob})
 
-    # vote for gauge locks
+    # vote for gauge weights
     gauge_controller.vote_for_gauge_weights(gauge_dai, 10000, {"from": alice})
     gauge_controller.vote_for_gauge_weights(gauge_fei, 10000, {"from": bob})
 
@@ -266,7 +270,7 @@ def test_e2e_vote_reflect_on_next_epoch(
     idle_token.approve(voting_escrow, 10 * 1e18, {"from": bob})
     voting_escrow.create_lock(10 * 1e18, 1668902400, {"from": bob})
 
-    # vote for gauge locks
+    # vote for gauge weights
     gauge_controller.vote_for_gauge_weights(gauge_dai, 1000, {"from": alice})
     gauge_controller.vote_for_gauge_weights(gauge_fei, 1000, {"from": alice})
 
@@ -320,3 +324,73 @@ def test_e2e_vote_reflect_on_next_epoch(
     distributor_proxy.distribute(gauge_fei, {"from": bob})
 
     assert idle_token.balanceOf(bob) > idle_token.balanceOf(alice)
+
+def test_e2e_rewards(
+    MultiRewards,
+    admin,
+    accounts,
+    chain,
+    idle_token,
+    distributor,
+    distributor_proxy,
+    gauge_controller,
+    tranche_dai,
+    gauge_dai,
+    dai,
+    reward_coin,
+):
+    # initialize distributor
+    chain.mine(timedelta=86400 + 1)
+    distributor.setDistributorProxy(distributor_proxy, {"from": admin})
+    distributor.updateDistributionParameters({"from": admin})
+    idle_token.transfer(distributor, 178_200 * 1e18, {"from": IDLE_GOVERNABLE_FUND})
+
+    # initialize multirewards
+    multirewards = MultiRewards.deploy(admin, tranche_dai.AATranche(), {"from": admin})
+
+    # gauges config
+    gauge_controller.add_type("Senior Tranches LP token", 10**18, {"from": admin})
+    gauge_controller.add_gauge(gauge_dai, 0, 1, {"from": admin})
+
+    # alice
+    alice = accounts[5]
+
+    # transfer DAI to alice
+    dai.transfer(alice, 1000 * 1e18, {"from": DAI_WHALE})
+
+    # deposit into tranches
+    dai.approve(tranche_dai, 1000 * 1e18, {"from": alice})
+    tranche_dai.depositAA(1000 * 1e18, {"from": alice})
+
+    # stake into gauges
+    aa_dai = interface.ERC20(tranche_dai.AATranche())
+    aa_dai.approve(gauge_dai, aa_dai.balanceOf(alice), {"from": alice})
+    gauge_dai.deposit(aa_dai.balanceOf(alice), {"from": alice})
+
+    # config rewards
+    sigs = [
+        multirewards.stake.signature[2:],
+        multirewards.withdraw.signature[2:],
+        multirewards.getReward.signature[2:],
+    ]
+
+    sigs = f"0x{sigs[0]}{sigs[1]}{sigs[2]}{'00' * 20}"
+
+    gauge_dai.set_rewards(
+        multirewards, sigs, [reward_coin] + [ZERO_ADDRESS] * 7, {"from": admin}
+    )
+
+    multirewards.addReward(reward_coin, admin, 4 * WEEK, {"from": admin})
+    reward_coin.approve(multirewards, 10_000 * 1e18, {"from": admin})
+    multirewards.notifyRewardAmount(reward_coin, 10_000 * 1e18, {"from": admin})
+
+    # sleep for a while
+    chain.sleep(2 * WEEK)
+    chain.mine()
+
+    # mint idles
+    gauge_dai.claim_rewards(alice, alice, {"from": alice})
+    distributor_proxy.distribute(gauge_dai, {"from": alice})
+
+    assert reward_coin.balanceOf(alice) > 0
+    assert idle_token.balanceOf(alice) > 0
