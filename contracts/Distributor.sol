@@ -17,7 +17,7 @@ contract Distributor is Ownable {
     address immutable treasury;
 
     /// @notice The IDLE token (the token to distribute).
-    IERC20 immutable idle = IERC20(0x875773784Af8135eA0ef43b5a374AaD105c5D39e);
+    IERC20 immutable idle;
 
     /// @notice One week in seconds.
     uint256 public constant ONE_WEEK = 86400 * 7;
@@ -53,9 +53,6 @@ contract Distributor is Ownable {
     /// @notice Distribution rate pending for upcoming epoch
     uint256 public pendingRate = INITIAL_RATE;
 
-    /// @notice Boolean indicating if the rate should go to 0 (defaults to false).
-    bool public rateToZero;
-
     /// @notice The DistributorProxy contract
     address public distributorProxy;
 
@@ -77,8 +74,10 @@ contract Distributor is Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev The constructor.
+    /// @param _idle The IDLE token address.
     /// @param _treasury The emergency withdrawal address.
-    constructor(address _treasury) {
+    constructor(IERC20 _idle, address _treasury) {
+        idle = _idle;
         treasury = _treasury;
     }
 
