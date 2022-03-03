@@ -347,6 +347,9 @@ def test_e2e_rewards(
 
     # initialize multirewards
     multirewards = MultiRewards.deploy(admin, tranche_dai.AATranche(), {"from": admin})
+    multirewards.addReward(reward_coin, admin, WEEK, {"from": admin})
+    reward_coin.approve(multirewards, 10_000 * 1e18, {"from": admin})
+    multirewards.notifyRewardAmount(reward_coin, 10_000 * 1e18, {"from": admin})
 
     # gauges config
     gauge_controller.add_type("Senior Tranches LP token", 10**18, {"from": admin})
@@ -380,17 +383,11 @@ def test_e2e_rewards(
         multirewards, sigs, [reward_coin] + [ZERO_ADDRESS] * 7, {"from": admin}
     )
 
-    multirewards.addReward(reward_coin, admin, 4 * WEEK, {"from": admin})
-    reward_coin.approve(multirewards, 10_000 * 1e18, {"from": admin})
-    multirewards.notifyRewardAmount(reward_coin, 10_000 * 1e18, {"from": admin})
-
     # sleep for a while
     chain.sleep(2 * WEEK)
     chain.mine()
 
-    # mint idles
-    gauge_dai.claim_rewards(alice, alice, {"from": alice})
-    distributor_proxy.distribute(gauge_dai, {"from": alice})
+    # claims rewards
+    gauge_dai.claim_rewards({"from": alice})
 
-    assert reward_coin.balanceOf(alice) > 0
-    assert idle_token.balanceOf(alice) > 0
+    assert approx(reward_coin.balanceOf(alice), 10_000 * 1e18, 1e-2)
