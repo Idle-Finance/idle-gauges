@@ -2,17 +2,18 @@ from brownie import accounts, Distributor, DistributorProxy, GaugeController, Ga
 
 import click
 
-GOVERNOR_BRAVO = '0x3D5Fc645320be0A085A32885F078F7121e5E5375'
+TIMELOCK = '0xD6dABBc2b275114a2366555d6C481EF08FDC2556'
 DEVELOPER_LEAGUE = '0xe8eA8bAE250028a8709A3841E0Ae1a44820d677b'
 STKIDLE = '0xaac13a116ea7016689993193fce4badc8038136f'
+IDLE = '0x875773784Af8135eA0ef43b5a374AaD105c5D39e'
 
 def main():
     deployer = click.prompt("Account", type=click.Choice(accounts.load()))
 
     # deploy needed contracts
-    distributor = Distributor.deploy(DEVELOPER_LEAGUE, {'from': deployer})
+    distributor = Distributor.deploy(IDLE, DEVELOPER_LEAGUE, {'from': deployer})
     gauge_controller = GaugeController.deploy(STKIDLE, {'from': deployer})
-    gauge_proxy = GaugeProxy.deploy(GOVERNOR_BRAVO, DEVELOPER_LEAGUE, {'from': deployer})
+    gauge_proxy = GaugeProxy.deploy(TIMELOCK, DEVELOPER_LEAGUE, {'from': deployer})
     distributor_proxy = DistributorProxy.deploy(distributor, gauge_controller, {'from': deployer})
 
 
@@ -21,9 +22,9 @@ def main():
 
 
     # change ownerships
-    gauge_controller.commit_transfer_ownership(GOVERNOR_BRAVO, {'from': deployer})
+    gauge_controller.commit_transfer_ownership(TIMELOCK, {'from': deployer})
     gauge_controller.apply_transfer_ownership({'from': deployer})
-    distributor.transferOwnership(GOVERNOR_BRAVO, {'from': deployer})
+    distributor.transferOwnership(TIMELOCK, {'from': deployer})
 
 
     # publish sources
