@@ -15,6 +15,7 @@ def main():
     gauge_controller = GaugeController.deploy(STKIDLE, {'from': deployer})
     gauge_proxy = GaugeProxy.deploy(TIMELOCK, DEVELOPER_LEAGUE, {'from': deployer})
     distributor_proxy = DistributorProxy.deploy(distributor, gauge_controller, {'from': deployer})
+    distributor.setDistributorProxy(distributor_proxy, {"from": deployer})
 
 
     # config senior tranches gauge type    
