@@ -194,11 +194,11 @@ def test_e2e_boost_user_claimable_in_same_gauge(
     # transfer a different amount of IDLEs to alice and bob
     idle_token.transfer(alice, 100 * 1e18, {"from": IDLE_GOVERNABLE_FUND})
 
-    # alice and bob creates locks
+    # alice creates locks while bob has not lock
     idle_token.approve(voting_escrow, 100 * 1e18, {"from": alice})
     voting_escrow.create_lock(100 * 1e18, 1668902400, {"from": alice})
 
-    # transfer DAI and FEI to alice and bob
+    # transfer DAI to alice and bob
     dai.transfer(alice, 1000 * 1e18, {"from": DAI_WHALE})
     dai.transfer(bob, 1000 * 1e18, {"from": DAI_WHALE})
 
@@ -308,6 +308,7 @@ def test_e2e_vote_reflect_on_next_epoch(
     assert idle_token.balanceOf(alice) > 0
     assert idle_token.balanceOf(bob) > 0
 
+    # reset IDLE balance to 0 for both bob and alice
     idle_token.transfer(admin, idle_token.balanceOf(alice), {"from": alice})
     idle_token.transfer(admin, idle_token.balanceOf(bob), {"from": bob})
 
