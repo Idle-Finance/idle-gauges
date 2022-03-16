@@ -182,8 +182,7 @@ contract Distributor is Ownable {
         return idle.transfer(to, amount);
     }
 
-    function setEmergencyAdmin(address emergencyAdmin_) external {
-        require(msg.sender == emergencyAdmin, "not emergency admin");
+    function setEmergencyAdmin(address emergencyAdmin_) external onlyOwner {
         emergencyAdmin = emergencyAdmin_;
     }
 
