@@ -1,4 +1,4 @@
-# @version 0.2.12
+# @version 0.2.15
 """
 @title Liquidity Gauge v3
 @author This version was modified starting from Curve Finance's DAO contracts
@@ -142,7 +142,7 @@ def __init__(_lp_token: address, _distributor_proxy: address, _admin: address):
     """
 
     symbol: String[26] = ERC20Extended(_lp_token).symbol()
-    self.name = concat("Idle.finance ", symbol, " Gauge Deposit")
+    self.name = concat(symbol, " Gauge Deposit")
     self.symbol = concat(symbol, "-gauge")
 
     distributor: address = DistributorProxy(_distributor_proxy).distributor()
