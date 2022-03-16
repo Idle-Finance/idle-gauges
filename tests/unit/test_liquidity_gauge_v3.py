@@ -79,7 +79,7 @@ def test_gauge_integral(accounts, chain, mock_lp_token, distributor, gauge_v3, g
     # and Alice does so more rarely
     for i in range(40):
         is_alice = random() < 0.2
-        dt = randrange(1, WEEK // 5)
+        dt = randrange(1, YEAR // 5)
         chain.sleep(dt)
         chain.mine()
 
@@ -126,7 +126,7 @@ def test_gauge_integral(accounts, chain, mock_lp_token, distributor, gauge_v3, g
         assert gauge_v3.balanceOf(bob) == bob_staked
         assert gauge_v3.totalSupply() == alice_staked + bob_staked
 
-        dt = randrange(1, WEEK // 20)
+        dt = randrange(1, YEAR // 20)
         chain.sleep(dt)
         chain.mine()
 
