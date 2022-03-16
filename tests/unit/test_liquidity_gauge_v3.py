@@ -4,6 +4,7 @@ from random import random, randrange
 
 MAX_UINT256 = 2 ** 256 - 1
 WEEK = 7 * 86400
+YEAR = 365 * 86400
 
 def approx(a, b, precision=1e-10):
     if a == b == 0:
@@ -133,7 +134,6 @@ def test_gauge_integral(accounts, chain, mock_lp_token, distributor, gauge_v3, g
         update_integral()
         print(i, dt / 86400, integral, gauge_v3.integrate_fraction(alice))
         assert approx(gauge_v3.integrate_fraction(alice), integral)
-
 
 def test_mining_with_votelock(
     accounts,

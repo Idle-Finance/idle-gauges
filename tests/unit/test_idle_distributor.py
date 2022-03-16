@@ -179,8 +179,7 @@ def test_distribute_multiple(accounts, chain, distributor, fake_idle, durations)
         chain.mine(timedelta=time)
 
         if chain.time() - epoch_start > WEEK:
-            distributor.updateDistributionParameters({"from": accounts[0]})
-            epoch_start = distributor.startEpochTime()
+            epoch_start = distributor.startEpochTimeWrite({'from': accounts[0]}).return_value
 
         amount = distributor.availableToDistribute() - distributed_idle
         distributor.distribute(accounts[1], amount, {"from": accounts[0]})
