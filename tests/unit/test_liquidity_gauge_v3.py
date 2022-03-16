@@ -20,7 +20,7 @@ def mock_lp_token(ERC20LP, accounts):
 
 @pytest.fixture(scope="module")
 def distributor(Distributor, fake_idle, accounts):
-    yield Distributor.deploy(fake_idle, accounts[0], {"from": accounts[0]})
+    yield Distributor.deploy(fake_idle, accounts[0], accounts[0], {"from": accounts[0]})
 
 @pytest.fixture(scope="module")
 def voting_escrow(VotingEscrow, fake_idle, accounts):

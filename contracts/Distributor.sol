@@ -27,7 +27,7 @@ contract Distributor is Ownable {
     uint256 public constant INITIAL_RATE = (178_200 * 10 ** 18) / (26 * ONE_WEEK);
 
     /// @notice Distribution epoch duration.
-    /// @dev 6 months epoch duration.
+    /// @dev 1 week epoch duration.
     uint256 public constant EPOCH_DURATION = ONE_WEEK;
 
     /// @notice Initial distribution epoch delay.
@@ -37,6 +37,9 @@ contract Distributor is Ownable {
     /*///////////////////////////////////////////////////////////////
                                 STORAGE
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Emergency admin.
+    address public emergencyAdmin;
 
     /// @notice Distributed IDLEs so far.
     uint256 public distributed;
@@ -55,6 +58,12 @@ contract Distributor is Ownable {
 
     /// @notice The DistributorProxy contract
     address public distributorProxy;
+
+    /// @notice The epoch number
+    uint256 public epochNumber;
+
+    /// @notice The mapping of rates for each epoch
+    mapping(uint256 => uint256) public ratePerEpoch;
 
     /*///////////////////////////////////////////////////////////////
                                 EVENTS
@@ -76,9 +85,10 @@ contract Distributor is Ownable {
     /// @dev The constructor.
     /// @param _idle The IDLE token address.
     /// @param _treasury The emergency withdrawal address.
-    constructor(IERC20 _idle, address _treasury) {
+    constructor(IERC20 _idle, address _treasury, address _emergencyAdmin) {
         idle = _idle;
         treasury = _treasury;
+        emergencyAdmin = _emergencyAdmin;
     }
 
     /// @notice Update the DistributorProxy contract
@@ -103,7 +113,12 @@ contract Distributor is Ownable {
     function _updateDistributionParameters() internal {
         startEpochTime += EPOCH_DURATION; // set start epoch timestamp
         epochStartingDistributed += (rate * EPOCH_DURATION); // set initial distributed floor
-        rate = pendingRate; // set new rate
+        
+        uint256 _pendingRate = pendingRate;
+        uint256 _epochNumber = ++epochNumber;
+
+        rate = _pendingRate; // set new rate
+        ratePerEpoch[_epochNumber] = _pendingRate; // set rate for this epoch
 
         emit UpdateDistributionParameters(startEpochTime, rate);
     }
@@ -167,9 +182,15 @@ contract Distributor is Ownable {
         return idle.transfer(to, amount);
     }
 
+    function setEmergencyAdmin(address emergencyAdmin_) external {
+        require(msg.sender == emergencyAdmin, "not emergency admin");
+        emergencyAdmin = emergencyAdmin_;
+    }
+
     /// @notice Emergency method to withdraw funds.
     /// @param amount The amount of IDLEs to withdraw from contract.
-    function emergencyWithdraw(uint256 amount) external onlyOwner {
+    function emergencyWithdraw(uint256 amount) external {
+        require(msg.sender == emergencyAdmin, "not emergency admin");
         idle.transfer(treasury, amount);
     }
 }
