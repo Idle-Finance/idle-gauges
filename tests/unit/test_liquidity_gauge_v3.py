@@ -4,6 +4,7 @@ from random import random, randrange
 
 MAX_UINT256 = 2 ** 256 - 1
 WEEK = 7 * 86400
+YEAR = 365 * 86400
 
 def approx(a, b, precision=1e-10):
     if a == b == 0:
@@ -20,7 +21,7 @@ def mock_lp_token(ERC20LP, accounts):
 
 @pytest.fixture(scope="module")
 def distributor(Distributor, fake_idle, accounts):
-    yield Distributor.deploy(fake_idle, accounts[0], {"from": accounts[0]})
+    yield Distributor.deploy(fake_idle, accounts[0], accounts[0], {"from": accounts[0]})
 
 @pytest.fixture(scope="module")
 def voting_escrow(VotingEscrow, fake_idle, accounts):
@@ -78,7 +79,7 @@ def test_gauge_integral(accounts, chain, mock_lp_token, distributor, gauge_v3, g
     # and Alice does so more rarely
     for i in range(40):
         is_alice = random() < 0.2
-        dt = randrange(1, WEEK // 5)
+        dt = randrange(1, YEAR // 5)
         chain.sleep(dt)
         chain.mine()
 
@@ -125,7 +126,7 @@ def test_gauge_integral(accounts, chain, mock_lp_token, distributor, gauge_v3, g
         assert gauge_v3.balanceOf(bob) == bob_staked
         assert gauge_v3.totalSupply() == alice_staked + bob_staked
 
-        dt = randrange(1, WEEK // 20)
+        dt = randrange(1, YEAR // 20)
         chain.sleep(dt)
         chain.mine()
 
@@ -133,7 +134,6 @@ def test_gauge_integral(accounts, chain, mock_lp_token, distributor, gauge_v3, g
         update_integral()
         print(i, dt / 86400, integral, gauge_v3.integrate_fraction(alice))
         assert approx(gauge_v3.integrate_fraction(alice), integral)
-
 
 def test_mining_with_votelock(
     accounts,

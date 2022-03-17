@@ -5,40 +5,55 @@ from brownie.test import given, strategy
 
 WEEK = 86400 * 7
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def fake_idle(ERC20LP, accounts):
     token = ERC20LP.deploy("Fake IDLE", "fIDLE", 18, 100000000000 * 1e18, {'from': accounts[0]})
     token.set_minter(accounts[0])
     token.mint(accounts[0], 100000000000 * 1e18)
     return token
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def distributor(Distributor, fake_idle, accounts):
-    yield Distributor.deploy(fake_idle, accounts[0], {"from": accounts[0]})
-
-# initial setup
-
-def initial_setup(chain, distributor, accounts, fake_idle):
-    chain.sleep(86401)
-    distributor.updateDistributionParameters()
-    fake_idle.transfer(distributor, fake_idle.balanceOf(accounts[0]), {'from': accounts[0]})
-
+    distr = Distributor.deploy(fake_idle, accounts[0], accounts[0], {"from": accounts[0]})
+    fake_idle.transfer(distr, fake_idle.balanceOf(accounts[0]), {'from': accounts[0]})
+    return distr
 
 # test epoch time distribution
 
-def test_start_epoch_time_write(distributor, chain):
-    creation_time = distributor.startEpochTime()
+def test_initial_state(distributor, chain):
+    # the distributor rate should be 0 at genesis
+    assert distributor.rate() == 0
+
+    # test available to distribute
+    assert distributor.availableToDistribute() == 0
+
+    initial_start_epoch = distributor.startEpochTime()
     chain.sleep(WEEK)
     chain.mine()
 
     # the constant function should not report a changed value
-    assert distributor.startEpochTime() == creation_time
+    assert distributor.startEpochTime() == initial_start_epoch
 
     # the state-changing function should show the changed value
-    assert distributor.startEpochTimeWrite().return_value == creation_time + WEEK
+    assert distributor.startEpochTimeWrite().return_value == initial_start_epoch + WEEK
 
     # after calling the state-changing function, the view function is changed
-    assert distributor.startEpochTime() == creation_time + WEEK
+    assert distributor.startEpochTime() == initial_start_epoch + WEEK
+
+
+def test_start_epoch_time_write(distributor, chain):
+    initial_start_epoch = distributor.startEpochTime()
+    chain.sleep(WEEK)
+    chain.mine()
+
+    # the constant function should not report a changed value
+    assert distributor.startEpochTime() == initial_start_epoch
+
+    # the state-changing function should show the changed value
+    assert distributor.startEpochTimeWrite().return_value == initial_start_epoch + WEEK
+
+    # after calling the state-changing function, the view function is changed
+    assert distributor.startEpochTime() == initial_start_epoch + WEEK
 
 
 def test_start_epoch_time_write_same_epoch(distributor):
@@ -47,14 +62,12 @@ def test_start_epoch_time_write_same_epoch(distributor):
     distributor.startEpochTimeWrite()
 
 
-def test_update_mining_parameters(distributor, chain, accounts):
-    creation_time = distributor.startEpochTime()
-    new_epoch = creation_time + WEEK - chain.time()
-    chain.sleep(new_epoch)
+def test_update_distribution_parameters(distributor, chain, accounts):
+    chain.sleep(WEEK)
     distributor.updateDistributionParameters({"from": accounts[0]})
 
 
-def test_update_mining_parameters_same_epoch(distributor, chain, accounts):
+def test_update_distribution_parameters_same_epoch(distributor, chain, accounts):
     creation_time = distributor.startEpochTime()
     new_epoch = creation_time + WEEK - chain.time()
     chain.sleep(new_epoch - 3)
@@ -79,37 +92,29 @@ def test_set_pending_rate_only_admin(accounts, distributor):
 
 
 def test_rate(accounts, chain, distributor):
-    assert distributor.rate() == 0
-
-    chain.sleep(86401)
+    chain.sleep(WEEK)
     distributor.updateDistributionParameters({"from": accounts[0]})
-
     assert distributor.rate() > 0
 
 
 def test_start_epoch_time(accounts, chain, distributor):
     creation_time = distributor.startEpochTime()
-    assert creation_time == distributor.tx.timestamp + 86400 - WEEK
 
-    chain.sleep(86401)
+    chain.sleep(WEEK)
     distributor.updateDistributionParameters({"from": accounts[0]})
 
     assert distributor.startEpochTime() == creation_time + WEEK
 
 
 def test_available_to_distribute(accounts, chain, distributor):
-    assert distributor.availableToDistribute() == 0
-
-    chain.sleep(86401)
-
+    chain.sleep(WEEK)
     distributor.updateDistributionParameters({"from": accounts[0]})
     chain.mine(timedelta=WEEK)
 
     # this is not a precise comparison because `availableToDistribute`
     # depends on block.timestamp
-
-    assert distributor.availableToDistribute() > 0
-    assert distributor.epochStartingDistributed() == 0    
+    cap = (distributor.epochNumber() + 1) * (distributor.rate() * distributor.EPOCH_DURATION())
+    assert distributor.availableToDistribute() <= cap
 
 # test pending rate
 
@@ -140,8 +145,6 @@ def test_rate_to_zero(accounts, chain, distributor):
 
 @given(duration=strategy("uint", min_value=86500, max_value=WEEK))
 def test_distribute(accounts, chain, distributor, fake_idle, duration):
-    initial_setup(chain, distributor, accounts, fake_idle)
-
     distributor.setDistributorProxy(accounts[0], {"from": accounts[0]})
     creation_time = distributor.startEpochTime()
     initial_distributed = distributor.distributed()
@@ -155,22 +158,16 @@ def test_distribute(accounts, chain, distributor, fake_idle, duration):
     assert distributor.distributed() == initial_distributed + amount
 
 @given(duration=strategy("uint", min_value=86500, max_value=WEEK))
-def test_overdistribute(accounts, chain, fake_idle, distributor, duration):
-    initial_setup(chain, distributor, accounts, fake_idle)
-
+def test_overdistribute(accounts, chain, distributor, duration):
     distributor.setDistributorProxy(accounts[0], {"from": accounts[0]})
-    creation_time = distributor.startEpochTime()
-    rate = distributor.rate()
     chain.sleep(duration)
 
     with brownie.reverts("amount too high"):
-        distributor.distribute(accounts[1], (chain.time() - creation_time + 2) * rate, {"from": accounts[0]})
+        distributor.distribute(accounts[1], distributor.availableToDistribute() + 100, {"from": accounts[0]})
 
 
 @given(durations=strategy("uint[5]", min_value=WEEK * 0.33, max_value=WEEK * 0.9))
 def test_distribute_multiple(accounts, chain, distributor, fake_idle, durations):
-    initial_setup(chain, distributor, accounts, fake_idle)
-
     distributor.setDistributorProxy(accounts[0], {"from": accounts[0]})
     distributed_idle = distributor.distributed()
     balance = fake_idle.balanceOf(accounts[1])
@@ -182,8 +179,7 @@ def test_distribute_multiple(accounts, chain, distributor, fake_idle, durations)
         chain.mine(timedelta=time)
 
         if chain.time() - epoch_start > WEEK:
-            distributor.updateDistributionParameters({"from": accounts[0]})
-            epoch_start = distributor.startEpochTime()
+            epoch_start = distributor.startEpochTimeWrite({'from': accounts[0]}).return_value
 
         amount = distributor.availableToDistribute() - distributed_idle
         distributor.distribute(accounts[1], amount, {"from": accounts[0]})
@@ -194,9 +190,7 @@ def test_distribute_multiple(accounts, chain, distributor, fake_idle, durations)
         assert fake_idle.balanceOf(accounts[1]) == balance
         assert distributor.distributed() == distributed_idle
 
-def test_emergency_withdraw(chain, accounts, distributor, fake_idle):
-    initial_setup(chain, distributor, accounts, fake_idle)
-
+def test_emergency_withdraw(accounts, distributor, fake_idle):
     balance = fake_idle.balanceOf(distributor)
     distributor.emergencyWithdraw(balance, {'from': accounts[0]})
 

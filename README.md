@@ -41,3 +41,14 @@ brownie test tests/e2e  --network mainnet-fork # e2e tests, needs mainnet forkin
 - `LiquidityGaugeV3`: https://www.diffchecker.com/y1nPgktn
 - `GaugeController`: https://www.diffchecker.com/i7GV4Y08
 - `GaugeProxy`: https://www.diffchecker.com/zUhUxtv7
+
+## Deployed contracts
+
+### Ethereum Mainnet
+
+Distributor: 0x1276A8ee84900bD8CcA6e9b3ccB99FF4771Fe329
+DistributorProxy: 0x074306BC6a6Fc1bD02B425dd41D742ADf36Ca9C6
+GaugeController: 0xaC69078141f76A1e257Ee889920d02Cc547d632f
+GaugeProxy: 0xBb1CB94F14881DDa38793d7F6F99d96Db0594051
+LiquidityGauge AATranche_crvALUSD: 0x21dDA17dFF89eF635964cd3910d167d562112f57
+LiquidityGauge AATranche_lido: 0x675eC042325535F6e176638Dd2d4994F645502B9

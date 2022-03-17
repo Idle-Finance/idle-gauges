@@ -38,7 +38,7 @@ def tranche_fei():
 
 @pytest.fixture(scope="function")
 def distributor(Distributor, idle_token, accounts):
-    yield Distributor.deploy(idle_token, accounts[0], {"from": accounts[0]})
+    yield Distributor.deploy(idle_token, accounts[0], accounts[0], {"from": accounts[0]})
 
 
 @pytest.fixture(scope="function")
