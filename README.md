@@ -52,3 +52,10 @@ brownie test tests/e2e  --network mainnet-fork # e2e tests, needs mainnet forkin
 - GaugeProxy: 0xBb1CB94F14881DDa38793d7F6F99d96Db0594051
 - LiquidityGauge AATranche_crvALUSD: 0x21dDA17dFF89eF635964cd3910d167d562112f57
 - LiquidityGauge AATranche_lido: 0x675eC042325535F6e176638Dd2d4994F645502B9
+- LiquidityGauge AATranche_frax: 0x7ca919Cf060D95B3A51178d9B1BCb1F324c8b693
+- LiquidityGauge AATranche_mim: 0x8cC001dd6C9f8370dB99c1e098e13215377Ecb95
+- LiquidityGauge AATranche_3eur: 0xDfB27F2fd160166dbeb57AEB022B9EB85EA4611C
+- LiquidityGauge AATranche_stecrv: 0x30a047d720f735Ad27ad384Ec77C36A4084dF63E
+- LiquidityGauge AATranche_musd: 0xAbd5e3888ffB552946Fc61cF4C816A73feAee42E
+- LiquidityGauge AATranche_mstable: 0x41653c7AF834F895Db778B1A31EF4F68Be48c37c
+
