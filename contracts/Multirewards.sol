@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.10;
 
-import {Ownable} from "@openzeppelin/access/Ownable.sol";
-import {Math} from "@openzeppelin/utils/math/Math.sol";
-import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/token/ERC20/utils/SafeERC20.sol";
-import "./utils/PausableInitializable.sol";
-import "./utils/ReentrancyGuardInitialize.sol";
 
-contract MultiRewards is ReentrancyGuardInitialize, PausableInitializable {
+import {MathUpgradeable as Math} from "@oz-upgradeable/utils/math/MathUpgradeable.sol";
+import {OwnableUpgradeable as Ownable} from "@oz-upgradeable/access/OwnableUpgradeable.sol";
+import {IERC20Upgradeable as IERC20} from "@oz-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import {PausableUpgradeable as Pausable} from "@oz-upgradeable/security/PausableUpgradeable.sol";
+import {SafeERC20Upgradeable as SafeERC20} from "@oz-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import {ReentrancyGuardUpgradeable as ReentrancyGuard} from "@oz-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+
+contract MultiRewards is Ownable, ReentrancyGuard, Pausable {
   using SafeERC20 for IERC20;
 
   /* ========== STATE VARIABLES ========== */
@@ -35,13 +36,17 @@ contract MultiRewards is ReentrancyGuardInitialize, PausableInitializable {
 
   /* ========== INITIALIZE ========== */
 
-  function initialize(address _owner, address _stakingToken) public {
-    require(address(stakingToken) == address(0), 'Initialized');  
+  function initialize(address _owner, address _stakingToken) public initializer {
     stakingToken = IERC20(_stakingToken);
-    // Give ownership to the right owner
-    _transferOwnership(_owner);
-    // ReentrancyGuardInitialize initialization
-    _status = _NOT_ENTERED;
+
+    // Init base contracts.
+
+    __Ownable_init();
+    __Pausable_init();
+    __ReentrancyGuard_init();
+
+    // Transfer ownership.
+    transferOwnership(_owner);
   }
 
   /* ========== ADD NEW REWARD TOKEN ========== */
@@ -95,7 +100,7 @@ contract MultiRewards is ReentrancyGuardInitialize, PausableInitializable {
     rewardData[_rewardsToken].rewardsDistributor = _rewardsDistributor;
   }
 
-  function stake(uint256 amount) external nonReentrant notPaused updateReward(msg.sender) {
+  function stake(uint256 amount) external nonReentrant whenNotPaused updateReward(msg.sender) {
     require(amount > 0, "Cannot stake 0");
     _totalSupply += amount;
     _balances[msg.sender] += amount;
