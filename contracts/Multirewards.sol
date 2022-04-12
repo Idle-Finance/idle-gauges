@@ -460,6 +460,7 @@ contract MultiRewards is ReentrancyGuard, Pausable {
     /* ========== STATE VARIABLES ========== */
 
     struct Reward {
+        bool shouldTransfer;
         address rewardsDistributor;
         uint256 rewardsDuration;
         uint256 periodFinish;
@@ -488,12 +489,14 @@ contract MultiRewards is ReentrancyGuard, Pausable {
     function addReward(
         address _rewardsToken,
         address _rewardsDistributor,
-        uint256 _rewardsDuration
+        uint256 _rewardsDuration,
+        bool _shouldTransfer // wheter to transfer the rewards from the rewards distributor upon notifyReward call or not
     ) public onlyOwner {
         require(rewardData[_rewardsToken].rewardsDuration == 0);
         rewardTokens.push(_rewardsToken);
         rewardData[_rewardsToken].rewardsDistributor = _rewardsDistributor;
         rewardData[_rewardsToken].rewardsDuration = _rewardsDuration;
+        rewardData[_rewardsToken].shouldTransfer = _shouldTransfer;
     }
 
     /* ========== VIEWS ========== */
@@ -613,18 +616,19 @@ contract MultiRewards is ReentrancyGuard, Pausable {
 
     /* ========== RESTRICTED FUNCTIONS ========== */
 
-    function notifyRewardAmount(address _rewardsToken, uint256 reward)
+    function depositReward(address _rewardsToken, uint256 reward)
         external
         updateReward(address(0))
     {
         require(rewardData[_rewardsToken].rewardsDistributor == msg.sender);
-        // handle the transfer of reward tokens via `transferFrom` to reduce the number
-        // of transactions required and ensure correctness of the reward amount
-        IERC20(_rewardsToken).safeTransferFrom(
-            msg.sender,
-            address(this),
-            reward
-        );
+
+        if (rewardData[_rewardsToken].shouldTransfer) {
+            IERC20(_rewardsToken).safeTransferFrom(
+                msg.sender,
+                address(this),
+                reward
+            );
+        }
 
         if (block.timestamp >= rewardData[_rewardsToken].periodFinish) {
             rewardData[_rewardsToken].rewardRate = reward.div(

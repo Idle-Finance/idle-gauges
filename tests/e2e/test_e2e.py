@@ -348,9 +348,9 @@ def test_e2e_rewards(
 
     # initialize multirewards
     multirewards = MultiRewards.deploy(admin, tranche_dai.AATranche(), {"from": admin})
-    multirewards.addReward(reward_coin, admin, WEEK, {"from": admin})
+    multirewards.addReward(reward_coin, admin, WEEK, True, {"from": admin})
     reward_coin.approve(multirewards, 10_000 * 1e18, {"from": admin})
-    multirewards.notifyRewardAmount(reward_coin, 10_000 * 1e18, {"from": admin})
+    multirewards.depositReward(reward_coin, 10_000 * 1e18, {"from": admin})
 
     # gauges config
     gauge_controller.add_type("Senior Tranches LP token", 10**18, {"from": admin})
