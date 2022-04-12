@@ -179,6 +179,14 @@ contract MultiRewards is Ownable, ReentrancyGuard, Pausable {
     rewardData[_rewardsToken].shouldTransfer = _shouldTransfer;
   }
 
+  function pause() external onlyOwner {
+    _pause();
+  }
+
+  function unpause() external onlyOwner {
+    _unpause();
+  }
+
   /* ========== MODIFIERS ========== */
 
   modifier updateReward(address account) {
