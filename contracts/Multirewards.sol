@@ -686,6 +686,13 @@ contract MultiRewards is ReentrancyGuard, Pausable {
         );
     }
 
+    function setShouldTransferRewards(address _rewardsToken, bool _shouldTransfer)
+        external
+        onlyOwner
+    {
+        rewardData[_rewardsToken].shouldTransfer = _shouldTransfer;
+    }
+
     /* ========== MODIFIERS ========== */
 
     modifier updateReward(address account) {
