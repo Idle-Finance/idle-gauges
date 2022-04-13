@@ -347,7 +347,8 @@ def test_e2e_rewards(
     idle_token.transfer(distributor, 178_200 * 1e18, {"from": IDLE_GOVERNABLE_FUND})
 
     # initialize multirewards
-    multirewards = MultiRewards.deploy(admin, tranche_dai.AATranche(), {"from": admin})
+    multirewards = MultiRewards.deploy({"from": admin})
+    multirewards.initialize(admin, tranche_dai.AATranche(), {"from": admin})
     multirewards.addReward(reward_coin, admin, WEEK, True, {"from": admin})
     reward_coin.approve(multirewards, 10_000 * 1e18, {"from": admin})
     multirewards.depositReward(reward_coin, 10_000 * 1e18, {"from": admin})

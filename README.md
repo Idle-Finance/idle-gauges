@@ -60,3 +60,9 @@ brownie test tests/e2e  --network mainnet-fork # e2e tests, needs mainnet forkin
 - LiquidityGauge AATranche_mstable: 0x41653c7AF834F895Db778B1A31EF4F68Be48c37c
 - LiquidityGauge AATranche_pbtc: 0x2bea05307b42707be6cce7a16d700a06ff93a29d
 - Multirewards AATranche_lido: 0xA357AF9430e4504419A7A05e217D4A490Ecec6FA
+
+Factory for minimal clone: 0x91baced76e3e327ba7850ef82a7a8251f6e43fb8
+Cloneable Multirewards implementation:
+0x1e086b7d6e6ab3e537f921d60ca8e318fe8b32d7 
+- Multirewards AATranche_musd3crv: 0x7f366a2b4c4380fd9746cf10b4ded562c890b0b1
+- Multirewards AATranche_pbtc: 0x7d4091D8b28d09b4135905213DE105C45d7F459d
